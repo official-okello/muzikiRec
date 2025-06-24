@@ -85,5 +85,3 @@ if song_name:
                 st.success(f"Playlist '{playlist_name}' created! 🎧 [View on Spotify]({playlist['external_urls']['spotify']})")
             else:
                 st.error("Could not retrieve song URIs. Try again.")
-
-st.write("🚀 MuzikiRec now offers **editable recommendations** and **Spotify playlist creation**!")
