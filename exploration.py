@@ -2,170 +2,94 @@ import logging
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
+import streamlit as st
 from wordcloud import WordCloud
+import pandas as pd
 
-# Visualizing distribution of tracks accross diferent decades
-def visualize_decade_distribution(data):
-    if 'decade' not in data.columns:
-        logging.error("Decade column not found in the dataset.")
-        return
+# Setting up logging to handle errors
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    # Plotting the distribution of tracks across different decades
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-    sns.countplot(x="decade", data=data, hue="decade", palette="viridis", legend=False)
+# Load dataset
+@st.cache_data
+def load_data():
+    return pd.read_csv("C:/Users/USER/OneDrive/Desktop/DS_GOMYCODE/ML/scripts/Music Recommendation System/datasets/data.csv")
+
+df = load_data()
+
+# Streamlit page setup
+st.title("🎶 MuzikiRec Exploration Dashboard")
+
+# Sidebar Filters
+st.sidebar.title("Filters 🎛")
+selected_decade = st.sidebar.selectbox("Select Decade", sorted(df["decade"].unique()))
+selected_genre = st.sidebar.selectbox("Select Genre", df["genres"].unique())
+popularity_range = st.sidebar.slider("Popularity", 0, 100, (30, 80))
+
+# Filter data based on selections
+filtered_df = df[
+    (df["decade"] == selected_decade) & 
+    (df["genres"] == selected_genre) & 
+    (df["popularity"].between(*popularity_range))
+]
+
+# Visualizing Decade Distribution
+st.subheader("Tracks Distribution Across Decades")
+if 'decade' in df.columns:
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.countplot(x="decade", data=df, hue="decade", palette="viridis", legend=False, ax=ax)
+    ax.set_title("Tracks Distribution Across Decades")
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.title('Distribution of Tracks Across Different Decades')
-    plt.xlabel('Decade')
-    plt.ylabel('Number of Tracks')
-    plt.show()
+    st.pyplot(fig)
+else:
+    st.warning("Decade column not found in dataset.")
 
-# Plotting the trends of various sound features (acousticness, danceability, energy, instrumentalness, liveness, valence) over decades
-def plot_sound_features_trends(data):
-    if 'decade' not in data.columns:
-        logging.error("Decade column not found in the dataset.")
-        return
+# Trend of Sound Features Over Decades
+st.subheader("Sound Feature Trends Over Decades")
+sound_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'valence']
+for feature in sound_features:
+    if feature in df.columns:
+        fig = px.line(df, x="decade", y=feature, markers=True, title=f'Trend of {feature} Over Decades')
+        fig.update_layout(xaxis_tickangle=45, template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning(f"{feature} column not found in dataset.")
 
-    sound_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'valence']
-    
-    for feature in sound_features:
-        if feature in data.columns:
-            fig = px.line(data, x='decade', y=feature, markers=True, title=f'Trend of {feature} Over Decades')
-            fig.update_layout(
-                xaxis_title='Decade',
-                yaxis_title=feature,
-                xaxis_tickangle=45,
-                template='plotly_white'
-            )
-            fig.show()
-        else:
-            logging.warning(f"{feature} column not found in the dataset.")
+# Top 10 Genres Trend
+st.subheader("Top 10 Genres - Sound Features Comparison")
+top_genres = df["genres"].value_counts().nlargest(10).index.tolist()
+filtered_genre_data = df[df["genres"].isin(top_genres)]
+for feature in ["valence", "energy", "danceability", "acousticness"]:
+    if feature in filtered_genre_data.columns:
+        fig = px.bar(filtered_genre_data, x="genres", y=feature, color=feature, color_continuous_scale="viridis",
+                     title=f'Trend of {feature} for Top 10 Genres')
+        fig.update_layout(xaxis_tickangle=45, template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning(f"{feature} column not found in dataset.")
 
-# Plotting the trend of loudness over decades using a line plot
-def plot_loudness_trend(data):
-    if 'decade' not in data.columns or 'loudness' not in data.columns:
-        logging.error("Decade or loudness column not found in the dataset.")
-        return
+# Genre Word Cloud
+st.subheader("Genre Word Cloud")
+if "genres" in df.columns:
+    comment_words = ' '.join(df["genres"].dropna().astype(str).tolist())
+    wordcloud = WordCloud(width=800, height=400, background_color="white", max_words=40).generate(comment_words)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud, interpolation="bilinear")
+    ax.axis("off")
+    ax.set_title("Word Cloud of Genres")
+    st.pyplot(fig)
+else:
+    st.warning("Genres column not found in dataset.")
 
-    fig = px.line(data, x='decade', y='loudness', title='Trend of Loudness Over Decades')
-    fig.update_layout(
-        xaxis_title='Decade',
-        yaxis_title='Loudness (dB)',
-        xaxis_tickangle=45,
-        template='plotly_white'
-    )
-    fig.show()
+# Export Options
+st.sidebar.subheader("Export Options")
+export_format = st.sidebar.selectbox("Choose Export Format", ["CSV", "PNG"])
+if st.sidebar.button("Export Data"):
+    if export_format == "CSV":
+        filtered_df.to_csv("filtered_data.csv", index=False)
+        st.sidebar.success("Data exported successfully as CSV! ✅")
+    elif export_format == "PNG":
+        fig.write_image("chart.png")
+        st.sidebar.success("Chart saved as PNG! ✅")
 
-# Identifying the top 10 genres based on popularity and plotting the trends of various sound features (valence, energy, danceability, acousticness) for these genres using a grouped bar chart
-def plot_top_genres_trends(genre_data):
-    if genre_data is None or genre_data.empty:
-        logging.error("Genre data is not available.")
-        return
-    if 'genres' not in genre_data.columns:
-        logging.error("Genres column not found in the genre data.")
-        return
-    if not all(feature in genre_data.columns for feature in ['valence', 'energy', 'danceability', 'acousticness']):
-        logging.error("One or more sound feature columns not found in the genre data.")
-        return
-    
-    # Filtering top 10 genres based on their count
-    logging.info("Filtering top 10 genres based on their count...")
-    top_genres = genre_data['genres'].value_counts().nlargest(10).index.tolist()
-    filtered_genre_data = genre_data[genre_data['genres'].isin(top_genres)]
-
-    sound_features = ['valence', 'energy', 'danceability', 'acousticness']
-    
-    for feature in sound_features:
-        if feature in filtered_genre_data.columns:
-            fig = px.bar(filtered_genre_data, x='genres', y=feature, color=feature, color_continuous_scale='viridis',
-             title=f'Trend of {feature} for Top 10 Genres')
-            fig.update_layout(
-                xaxis_title='Genre',
-                yaxis_title=feature,
-                xaxis_tickangle=45,
-                template='plotly_white'
-            )
-            fig.show()
-        else:
-            logging.warning(f"{feature} column not found in the genre data.")
-
-# Generating a word cloud of the genres present in the data
-def generate_genre_wordcloud(genre_data):
-    if genre_data is None or genre_data.empty:
-        logging.error("Genre data is not available.")
-        return
-    if 'genres' not in genre_data.columns:
-        logging.error("Genres column not found in the genre data.")
-        return
-
-    # Concatenating all genres into a single string
-    comment_words = ' '.join(genre_data['genres'].dropna().astype(str).tolist())
-    
-    # Generating the word cloud
-    stopwords = set(['and', 'the', 'of', 'in', 'to', 'a', 'is', 'for', 'with', 'on', 'as', 'by', 'this', 'that'])
-    wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=stopwords, max_words=40).generate(comment_words)
-    
-    # Displaying the word cloud
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.title('Word Cloud of Genres')
-    plt.show()
-
-# Generating a word cloud of the artists present in the data
-def generate_artist_wordcloud(artist_data):
-    if artist_data is None or artist_data.empty:
-        logging.error("Artist data is not available.")
-        return
-    if 'artists' not in artist_data.columns:
-        logging.error("Artists column not found in the artist data.")
-        return
-
-    # Concatenating all artists into a single string
-    comment_words = ' '.join(artist_data['artists'].dropna().astype(str).tolist())
-    
-    # Generating the word cloud
-    stopwords = set(['and', 'the', 'of', 'in', 'to', 'a', 'is', 'for', 'with', 'on', 'as', 'by', 'this', 'that'])
-    wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=stopwords, max_words=40).generate(comment_words)
-    
-    # Displaying the word cloud
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.title('Word Cloud of Artists')
-    plt.show()
-
-# Identifying the top 10 artists with the most songs produced and displaying the count and artist name
-def top_artists_by_song_count(artist_data):
-    if artist_data is None or artist_data.empty:
-        logging.error("Artist data is not available.")
-        return
-    if 'artists' not in artist_data.columns:
-        logging.error("Artists column not found in the artist data.")
-        return
-
-    # Counting the number of songs for each artist by artist name
-    top10_most_song_produced_artists = artist_data['artists'].value_counts().nlargest(10).sort_values(ascending=False)
-    top10_most_song_produced_artists = top10_most_song_produced_artists.reset_index()
-    
-    # Displaying the top artists by song count
-    print("\nTop 10 Artists by Song Count:")
-    print(top10_most_song_produced_artists)
-
-# Identifying the top 10 artists with the highest popularity score and displaying the popularity score and artist name
-def top_artists_by_popularity(artist_data):
-    if artist_data is None or artist_data.empty:
-        logging.error("Artist data is not available.")
-        return
-    if 'artists' not in artist_data.columns or 'popularity' not in artist_data.columns:
-        logging.error("Artists or popularity column not found in the artist data.")
-        return
-
-    # Counting the number of songs for each artist by popularity
-    top10_popular_artists = artist_data.groupby('artists')['popularity'].mean().nlargest(10).sort_values(ascending=False)
-    top10_popular_artists = top10_popular_artists.reset_index()
-    
-    # Displaying the top artists by popularity
-    print("\nTop 10 Artists by Popularity Score:")
-    print(top10_popular_artists)
+st.write("🚀 Enjoy exploring MuzikiRec's data-driven insights!")
