@@ -1,67 +1,89 @@
-# Importing Libraries
 import pandas as pd
 import os
 import numpy as np
 import logging
-from wordcloud import WordCloud
+import streamlit as st
 
-# Setting up logging to handle errors and information
+# Setting up logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-# Import Data
+# Define dataset paths dynamically
+@st.cache_data
 def import_data():
-    try:
-        paths = {
-            'data': 'C:/Users/USER/OneDrive/Desktop/DS_GOMYCODE/ML/scripts/Music Recommendation System/datasets/data.csv',
-            'genre_data': 'C:/Users/USER/OneDrive/Desktop/DS_GOMYCODE/ML/scripts/Music Recommendation System/datasets/data_by_genres.csv',
-            'year_data': 'C:/Users/USER/OneDrive/Desktop/DS_GOMYCODE/ML/scripts/Music Recommendation System/datasets/data_by_year.csv',
-            'artist_data': 'C:/Users/USER/OneDrive/Desktop/DS_GOMYCODE/ML/scripts/Music Recommendation System/datasets/data_by_artist.csv'
-        }
+    """Load multiple datasets with enhanced error handling."""
+    paths = {
+        "Data": "datasets/data.csv",
+        "Genre Data": "datasets/data_by_genres.csv",
+        "Year Data": "datasets/data_by_year.csv",
+        "Artist Data": "datasets/data_by_artist.csv"
+    }
 
-        datasets = {}
+    datasets = {}
 
-        for name, path in paths.items():
+    for name, path in paths.items():
+        try:
             if not os.path.exists(path):
-                raise FileNotFoundError(f"{name} file not found at {path}")
-            datasets[name] = pd.read_csv(path, on_bad_lines='warn')
+                logging.warning(f"⚠️ {name} file missing at {path}.")
+                datasets[name] = None
+                continue
 
-        return datasets['data'], datasets['genre_data'], datasets['year_data'], datasets['artist_data']
+            df = pd.read_csv(path, on_bad_lines="warn")
+            datasets[name] = None if df.empty else df
 
-    except FileNotFoundError as e:
-        logging.error(e)
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    except pd.errors.EmptyDataError:
-        logging.error("One or more files is empty.")
-        return None
-    except Exception as e:
-        logging.error(f"An unexpected error occurred: {e}")
-        return None
+        except Exception as e:
+            logging.error(f"❌ Error loading {name}: {e}")
+            datasets[name] = None
 
-# Displaying Dataset Rows
-def display_data(**datasets):
-    for name, data in datasets.items():
-        if data is not None and not data.empty:
-            print(f"\nDisplaying the first two rows of the {name} dataset:")
-            print(data.head(2))
-        else:
-            logging.warning(f"No data available for {name} dataset.")
+    return datasets
 
-# Data Information
-def data_info(**datasets):
-    for name, data in datasets.items():
-        if data is not None and not data.empty:
-            print(f"\n{name} dataset information:")
-            print(data.info())
-        else:
-            logging.warning(f"No data available for {name} dataset.")
+# Load datasets
+datasets = import_data()
 
-# Data Preprocessing - Creating Decade Column
+# Streamlit UI for dataset selection
+st.title("📊 MuzikiRec - Dataset Loader & Structure Overview")
+
+selected_dataset = st.sidebar.selectbox("Select Dataset to Preview", list(datasets.keys()))
+
+# Display dataset preview
+st.subheader(f"🔍 {selected_dataset} Preview")
+if datasets[selected_dataset] is not None:
+    st.dataframe(datasets[selected_dataset].head(10))
+else:
+    st.warning(f"⚠️ No data available for {selected_dataset}.")
+
+# Display dataset info
+st.subheader(f"🛠 Structure of {selected_dataset}")
+if datasets[selected_dataset] is not None:
+    st.text(datasets[selected_dataset].info())
+else:
+    st.warning(f"⚠️ No structure available for {selected_dataset}.")
+
+# Create Decade Column and save as the new dataset
+@st.cache_data
 def create_decade_column(data):
-    if 'year' in data.columns:
-        data['decade'] = data['year'].apply(lambda x: (x // 10) * 10 if pd.notnull(x) else np.nan)
-        data['decade'] = data['decade'].astype('Int64')  # Ensuring correct data type
-        logging.info("Decade column created successfully.")
-    else:
-        logging.error("Year column not found in the dataset.")
+    """Adds a 'decade' column for historical analysis."""
+    if data is None or "year" not in data.columns:
+        logging.error("⚠️ Year column missing in dataset.")
+        return data
+
+    data["decade"] = data["year"].apply(lambda x: (x // 10) * 10 if pd.notnull(x) else np.nan).astype("Int64")
+
+    # Save the modified dataset
+    data.to_csv("datasets/data_by_year.csv", index=False)
     
+    logging.info("✅ Decade column created successfully.")
+    return data
+
+# Normalize String Columns
+def convert_non_numeric_to_string(data):
+    """Ensure non-numeric columns are lowercase strings for consistency."""
+    if data is None:
+        logging.error("⚠️ Data missing for conversion.")
+        return data
+
+    non_numeric_cols = data.select_dtypes(exclude=[np.number]).columns
+    for col in non_numeric_cols:
+        data[col] = data[col].astype(str).str.lower()
+
+    logging.info("✅ Non-numeric columns converted to lowercase strings.")
     return data
