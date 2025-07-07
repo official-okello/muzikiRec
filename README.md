@@ -1,11 +1,8 @@
-```markdown
 # 🎶 MuzikiRec
 
 _MuzikiRec_ is a Streamlit-powered music intelligence app that lets users explore sonic trends, visualize genre clusters, and generate personalized playlists using audio features and Spotify integration.
 
 Built for data lovers, music creatives, and curious minds alike, MuzikiRec transforms raw music datasets into interactive insights and real-time playlist creation.
-
----
 
 ## 🚀 Features
 
@@ -23,8 +20,6 @@ Built for data lovers, music creatives, and curious minds alike, MuzikiRec trans
   - Filter by genre and decade.
   - Export selected songs into a public Spotify playlist.
 
----
-
 ## 🛠 Tech Stack
 
 | Layer          | Tools Used                                               |
@@ -36,11 +31,10 @@ Built for data lovers, music creatives, and curious minds alike, MuzikiRec trans
 | Spotify API    | Spotipy + Spotify OAuth                                  |
 | Utils          | FuzzyWuzzy for smart text matching                       |
 
----
 
 ## 📁 Project Structure
 
-```
+
 music-rec-system/
 ├── main.py                  # Streamlit entry point
 ├── loading.py              # Dataset loading & transformation
@@ -50,9 +44,9 @@ music-rec-system/
 ├── datasets/               # CSV files for songs, genres, artists
 ├── requirements.txt        # Python dependencies
 └── README.md               # This file
-```
 
----
+
+
 
 ## 🔧 Setup Guide
 
@@ -85,8 +79,6 @@ SPOTIFY_REDIRECT_URI=http://localhost:8501
 streamlit run main.py
 ```
 
----
-
 ## 🎤 Sample Dataset
 
 Place your song and genre data in the `datasets/` folder. Expected files include:
@@ -98,8 +90,6 @@ Place your song and genre data in the `datasets/` folder. Expected files include
 
 Make sure key columns like `valence`, `energy`, `danceability`, `acousticness`, and `name` are present.
 
----
-
 ## 🙌 Contributions Welcome
 
 Whether it's new clustering ideas, better Spotify UX, or visual storytelling, all contributions are welcome!
@@ -109,16 +99,13 @@ Whether it's new clustering ideas, better Spotify UX, or visual storytelling, al
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push and open a Pull Request.
 
----
 
 ## 📜 License
 
 Distributed under the MIT License.
 
----
 
 ## ✨ Credits
 
 Built by [Julius](https://www.linkedin.com/in/julius-okello-3889b2270/)  
 Inspired by data, driven by rhythm.
-```
